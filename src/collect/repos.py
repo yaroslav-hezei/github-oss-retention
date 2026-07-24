@@ -1,8 +1,9 @@
-import requests
-import os
 import json
+import os
+import time
+
+import requests
 from dotenv import load_dotenv
-import time 
 
 load_dotenv() 
 secret = os.getenv('GITHUB_TOKEN')

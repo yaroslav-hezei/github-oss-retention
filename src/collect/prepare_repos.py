@@ -21,5 +21,4 @@ for year in years:
 
 
 with open('data/processed/repos_to_process.txt', 'w', encoding ='utf-8') as f:
-    for name in all_names:
-        f.write(name + '\n')
+    f.writelines(name + '\n' for name in all_names)
