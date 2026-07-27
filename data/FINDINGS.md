@@ -165,3 +165,76 @@ From about 10% in recent years down to 1.7% in 2016.
 Both go in the README. This follows directly from what the contributor count
 actually measures: everyone who ever committed, not the size of the team working
 today.
+
+---
+
+## 6. Retention class — definition and composition
+
+**Two signals, not four.** Age became the cohort filter rather than a class
+signal. Support was dropped: `open_issues` is meaningless unnormalised against
+project size, and every available denominator fails — `stars` and `forks` are
+proxies for the popularity the sample is selected on, `contributors` is already a
+signal in its own right, and `age_days` only measures how long issues have had to
+accumulate. Repository size would work but was never collected. So the class
+rests on activity and team size.
+
+**Do two signals suffice?** The original concern was that `pushed_at` alone is
+fragile — a push can come from a dependency bot. Team size guards against this
+only if the two signals disagree often enough, and they do: 36% of small teams
+are active while 28% of larger ones are silent (section 4). Correlated, not
+redundant.
+
+**Thresholds are assumptions, and stated as such.** Activity is drawn at
+`days_since_push < 400` and the cohort at `created_year <= 2020`. Neither follows
+from the data — section 1 shows no natural break exists. The justification is
+section 4: the core result holds at 31–36 points across both alternatives, so
+neither line carries the conclusion. The wider cohort was preferred for the
+larger N.
+
+**Only one conflict is a conflict.** Crossing the two signals gives four cells
+(cohort ≤ 2020, ruler 400):
+
+| | active | silent |
+|---|---|---|
+| team 3+ | 2575 | 1004 |
+| team 1–2 | 62 | 109 |
+
+Silent-with-a-large-team looks like a conflict but is not: the contributor count
+is cumulative, so a project dead for years still carries a high count from people
+who passed through long ago. Those 1004 are ordinary fading projects and go to
+`faded`. Active-with-a-team-of-two survives any reading of the metric — one or
+two people over the entire history is unambiguously solo — and gets its own
+class.
+
+**Resulting distribution:**
+
+| class | condition | n |
+|-------|-----------|---|
+| `too_young` | `created_year > 2020` | 3750 |
+| `faded` | `days_since_push >= 400` | 1113 |
+| `active_small_team` | active, `contributors <= 2` | 62 |
+| `retained` | active, larger team | 2575 |
+
+`too_young` is a label rather than NULL: the exclusion is a known methodological
+decision, and as a named category it stays visible in the dashboard legend
+instead of reading as missing data.
+
+**Caveats on `active_small_team`.** Reviewing all 62 by description showed the
+class mixes project types:
+
+- Most are what the question was about: popular libraries and applications
+  maintained by one or two people for years (`ethers.js`, `legado`, `screenity`,
+  `BBDown`, `MaterialFiles`).
+- Some are curated lists, tutorials and corpora, where a push means adding an
+  entry, not development.
+- Three are automated: `trackerslist`, `PoC-in-GitHub` and Unity's source dump
+  push on a schedule, not by hand. There is no field that distinguishes automated
+  pushes from human ones — these were spotted by description, and others may
+  remain.
+
+The class is kept whole for the statistics: a link list maintained for five years
+is genuine retention, merely of a different kind, and removing it from the
+numerator while leaving the denominator intact would deflate the small-team share
+by construction. For named examples on the dashboard the subset with a defined
+`language` is used (42 of 62) — where no code is in the repository, `pushed_at`
+does not stand for development.

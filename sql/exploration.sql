@@ -61,3 +61,15 @@ SELECT CASE WHEN contributors <= 2 THEN 'small (1-2)' ELSE 'rest (3+)' END AS te
 FROM repositories
 WHERE created_year <= 2020
 GROUP BY team;
+
+-- Signal cross-tab: which of the four cells are genuinely conflicting.
+SELECT CASE WHEN contributors <= 2 THEN 'small' ELSE 'big' END AS team,
+       CASE WHEN days_since_push < 400 THEN 'active' ELSE 'silent' END AS activity,
+       COUNT(*) AS n
+FROM repositories
+WHERE created_year <= 2020
+GROUP BY team, activity;
+
+-- Repos with no code in the class: pushed_at there means list upkeep, not development.
+SELECT full_name FROM repositories
+WHERE retention_class = 'active_small_team' AND language IS NULL;
