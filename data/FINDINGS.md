@@ -215,9 +215,22 @@ class.
 | `active_small_team` | active, `contributors <= 2` | 62 |
 | `retained` | active, larger team | 2575 |
 
-`too_young` is a label rather than NULL: the exclusion is a known methodological
-decision, and as a named category it stays visible in the dashboard legend
-instead of reading as missing data.
+**Why `too_young` is a label and not NULL.** The original reason given — that a
+named category stays visible in the dashboard legend — does not hold: page 2 is
+filtered to `created_year <= 2020`, so the label never appears in that legend at
+all. Two reasons that do hold:
+
+1. NULL arrives in Power BI as `(Blank)`, behaves differently inside measures,
+   and reads as missing data in exactly the place where a deliberate
+   methodological exclusion is being shown.
+2. It makes the column self-checking. After `classify.py` there are no empty
+   values anywhere, verifiable by a single `COUNT(*) WHERE retention_class IS
+   NULL`. With NULL for young repos, "excluded by methodology" would be
+   indistinguishable from "the script did not run".
+
+The legend argument becomes true only on page 1, where a visual showing what
+share of the sample enters the retention analysis is planned. That is a bonus,
+not the justification.
 
 **Caveats on `active_small_team`.** Reviewing all 62 by description showed the
 class mixes project types:
@@ -271,3 +284,203 @@ No finer split inside organisations is supportable from what is available.
 `google-deepmind`, `modelcontextprotocol`. These sit in recent cohorts and are
 classified `too_young`, so they carry no weight in the retention analysis — but
 they are context for the language and ecosystem trends.
+
+---
+
+## 8. Censoring on the activity axis
+
+Section 1 applied a censoring correction to a table. The same correction has to
+be applied again when the same values become a chart axis, and it lands
+differently there.
+
+**The constraint.** A repo cannot have been silent for longer than it has
+existed, so a point's `days_since_push` is capped by its own `age_days`. On a
+scatter with `days_since_push` on Y, the upper region is reachable only by the
+older part of the cohort — not because old repos go quiet more often, but
+because young ones cannot physically get there.
+
+**Measurements (cohort ≤ 2020, 3750 repos):**
+
+| quantity | value |
+|---|---|
+| `age_days` range | 2023 … 3847 |
+| `days_since_push` range | 0 … 3024 |
+| repos above 2023 days of silence | 72 (1.9%) |
+| 95th percentile of `days_since_push` | 1414 |
+
+**Where the axis stops being trustworthy: 2023 days.** Below it every repo in
+the cohort could appear; above it only those old enough, which is a selection on
+precisely the variable the chart invites conclusions about.
+
+**The classification is unaffected.** The activity threshold of 400 days sits far
+below 2023, so every repo in the cohort had a full opportunity to fall on either
+side of it. `retention_class` carries no censoring. The distortion is purely
+visual and confined to the upper third of the axis, where 1.9% of the points sit.
+
+**Why the axis is not truncated.** Cutting Y at the 95th percentile was
+considered and rejected. In Power BI, points outside a manually set axis maximum
+are not clamped to the edge — they are not drawn at all, so 188 repos would
+disappear without leaving a trace. That is worse than the problem it solves: a
+visible cluster at the top edge at least prompts a question. *(To be confirmed
+against the actual rendering when the dashboard is built.)*
+
+**Decision — logarithmic Y axis.** Nothing is removed and no artificial cluster
+is created; the tail compresses and the mass between 0 and 400 days, which would
+otherwise occupy the bottom 13% of the plot, takes up most of the height. Two
+consequences to state on the visual itself:
+
+- `MIN(days_since_push) = 0`, which a log scale cannot render. The axis uses
+  `days_since_push + 1`, a **calculated column in Power BI, not in SQLite**: the
+  shift exists because of how the renderer behaves, not because of anything in
+  the data, and the database should not carry a column that only makes sense
+  downstream. Half a line in the README covers it.
+- A log axis is harder to read — the distance from 10 to 100 equals the distance
+  from 100 to 1000. The axis label must say so outright rather than leave the
+  reader to infer it from uneven gridlines.
+
+The alternative kept in reserve is a plain linear axis over the full 0–3024
+range: visually poor, analytically flawless, and requiring no caveat at all.
+
+---
+
+## 9. Choosing the colour variable for the main scatter
+
+**The problem.** `retention_class` is a deterministic function of
+`days_since_push` and `contributors` — both of which are the scatter's axes.
+Colouring points by it produces three rectangular blocks divided by the lines
+x = 2 and y = 400. No point can land outside its own colour; the colour shows
+where the thresholds were drawn, not anything about the data. Colour therefore
+has to carry a variable that is not part of the axes, not part of the class
+definition, and not a proxy for the popularity the sample was selected on.
+
+The class boundaries stay on the chart as **annotation lines**, which is what
+they are.
+
+**Test used for every candidate.** Compare the outcome across the candidate's
+values *within a narrow band of `contributors`*. Comparing across the whole
+cohort mixes the candidate's own effect with team size, which is the X axis. A
+difference below **10 percentage points** was fixed in advance as noise — the
+smallest cells hold a few dozen repos.
+
+### 9.1 `owner_type` — rejected
+
+Share of organisations among active vs silent repos, cohort ≤ 2020:
+
+| band | active | silent | gap |
+|---|---|---|---|
+| all `team 3+` | 0.630 (1623/2575) | 0.379 (381/1004) | +25.1 pp |
+| 3–10 | 0.185 (30/162) | 0.232 (69/298) | −4.7 pp |
+| 11–50 | 0.362 (211/583) | 0.338 (153/452) | +2.4 pp |
+| 51+ | 0.755 (1379/1827) | 0.626 (159/254) | +12.9 pp |
+| 51–200 | 0.665 (686/1031) | 0.589 (116/197) | +7.6 pp |
+| 201–1000 | 0.862 (601/697) | 0.764 (42/55) | +9.8 pp |
+| 1001+ | 0.929 (92/99) | n = 2 | not computable |
+
+**Reading.** The 25-point gap on the wide bucket does not survive
+stratification: it falls to 12.9 within 51+, then to 7.6 and 9.8 as the band
+narrows further, and reverses sign in the smallest band. The mechanism is
+composition. The organisation share rises steeply with team size (0.215 → 0.352 →
+0.739 across the three bands), while active repos are concentrated in the large
+band (1827 active vs 254 silent) and silent ones in the small band (162 vs 298).
+Pooling the two produces a gap that reports "active repos are larger, and large
+repos belong to organisations", not "organisations retain better".
+
+`owner_type` describes the **size** of a project, not its survival. As colour on
+an axis of team size it would restate X.
+
+### 9.2 `created_year` — rejected
+
+Above 2023 days of silence the colour would be fully determined by the Y
+coordinate (section 8), and below it the two remain linked through the age effect
+of section 1. Weaker than the `owner_type` failure — the hard determination
+covers 72 points — but it would display what sections 1 and 5 already state.
+
+### 9.3 `language` — accepted
+
+Share still active (`days_since_push < 400`), cohort ≤ 2020, languages with
+n ≥ 50:
+
+| language | n | share | language | n | share |
+|---|---|---|---|---|---|
+| Rust | 172 | 0.901 | Swift | 65 | 0.708 |
+| Go | 365 | 0.890 | Python | 606 | 0.675 |
+| TypeScript | 487 | 0.860 | Shell | 90 | 0.667 |
+| C# | 99 | 0.828 | HTML | 87 | 0.655 |
+| C++ | 194 | 0.820 | Java | 192 | 0.583 |
+| C | 108 | 0.759 | Vue | 50 | 0.580 |
+| | | | JavaScript | 410 | 0.568 |
+| | | | Jupyter Notebook | 110 | 0.464 |
+
+A spread of 44 points — wider than the project's core result. Two competing
+explanations were tested.
+
+**Age — rejected.** Mean `created_year` per language spans 0.65 of a year in
+total (2017.70 for Java and C, 2018.35 for Rust). At roughly 6 points of silence
+per cohort year (section 1), age can account for about 4 of the 44 points. The
+orderings also disagree: Python is second youngest and eighth by retention,
+Jupyter Notebook fifth youngest and last.
+
+**Team size — tested and survived.** Median team size per language does track the
+retention ranking closely (Rust 145.5, Go 125, TypeScript 109 at the top;
+Jupyter Notebook 16 at the bottom), so the effect was re-checked inside bands of
+`contributors`:
+
+| band | Rust | Go | JavaScript | Jupyter Notebook |
+|---|---|---|---|---|
+| 3–10 | n < 20 | 0.450 (20) | 0.339 (56) | 0.226 (31) |
+| 11–50 | 0.750 (28) | 0.692 (65) | 0.483 (143) | 0.486 (37) |
+| 51+ | 0.935 (139) | 0.975 (276) | 0.708 (195) | 0.793 (29) |
+
+**Reading.** The ordering is the same in all three bands and the gap between the
+top pair and the bottom pair holds at roughly 21–27 points — it does not decay as
+the band narrows, which is exactly how `owner_type` failed. Team size is also
+visibly at work *within* each language (JavaScript 0.339 → 0.483 → 0.708), so the
+two effects are independent: X and colour show different things.
+
+**Caveats.** Four languages from the ends of the ranking were tested; the middle
+(Python, TypeScript, Java, C++) was not. Rust has fewer than 20 repos in the
+3–10 band and drops out there.
+
+### 9.4 Palette: K = 7, explicit assumption
+
+Repo counts per language in the cohort: Python 606, TypeScript 487, JavaScript
+410, *(no language)* 374, Go 365, C++ 194, Java 192, Rust 172, Jupyter Notebook
+110, C 108, C# 99, Shell 90, HTML 87, Swift 65, Vue 50, Kotlin 48, PHP 38 …
+
+The sharpest break in the distribution is 365 → 194, which would give K = 4. It
+was **not** taken: that boundary excludes Rust, the retention leader and the
+language carrying the verified effect in section 9.3. K = 7 (Python, TypeScript,
+JavaScript, Go, C++, Java, Rust) plus an "other" bucket is a content-driven
+boundary, recorded here as an **explicit assumption** in the same sense as the
+cohort cutoff — not found in the data, and named rather than dressed up.
+
+Of the seven, only Rust, Go and JavaScript were put through the stratification
+test.
+
+### 9.5 `language = NULL` — grey, outside the legend
+
+374 repos, 10% of the cohort, are documentation projects with no code. Three
+reasons they do not get a colour of their own:
+
+- Section 6 already establishes that `pushed_at` there means adding an entry to
+  a list, not development — their Y coordinate does not mean the same thing as
+  everyone else's, and an equal place in a legend of languages would assert that
+  it does.
+- Seven languages plus "other" is already the readable ceiling for a scatter of
+  3750 points; a ninth category would not be distinguishable inside the dense
+  core of the cloud.
+- The fact is more interesting on its own than as a shade. "374 of 3750 repos in
+  the cohort contain no code" belongs on page 1 as a stated number, where it is
+  legible, rather than buried as the ninth colour.
+
+They stay on the chart in neutral grey with a note, so the density is visible and
+no share is silently recomputed on a smaller denominator.
+
+### 9.6 Resulting design of the main visual
+
+| channel | variable | note |
+|---|---|---|
+| X | `contributors`, log | label: "contributors over the project's lifetime" |
+| Y | `days_since_push + 1`, log | calculated column in Power BI; label states the log scale |
+| colour | `language`, top 7 + other | NULL in grey, outside the legend |
+| annotation | x = 2, y = 400 | class boundaries as lines, not as colour |
