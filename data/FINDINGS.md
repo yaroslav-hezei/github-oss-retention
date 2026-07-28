@@ -238,3 +238,36 @@ numerator while leaving the denominator intact would deflate the small-team shar
 by construction. For named examples on the dashboard the subset with a defined
 `language` is used (42 of 62) — where no code is in the repository, `pushed_at`
 does not stand for development.
+
+---
+
+## 7. No workable segmentation inside organisations
+
+A second segmentation level inside organisations was considered: a flag for
+major tech corporations, set from a frozen external ranking. Two criteria were
+tested and both failed.
+
+**Market capitalisation.** A ranking by company value answers "how expensive is
+this company", not "how large a player is it in open source". Apache, Mozilla and
+the Linux Foundation are not companies at all; Red Hat, JetBrains and Vercel are
+far outside any capitalisation top list yet visible here; Berkshire Hathaway and
+Saudi Aramco would be inside it with zero repositories in the sample.
+
+**Repository count within the sample.** The alternative was to define the flag
+from the data — organisations with the most repos in the sample. Counts run 101,
+41, 40, 32, 28, 27, 27, 24, 19, 17, 16 … 8. Only one gap exists, between
+Microsoft and everyone else; below that the decline is smooth, so any cutoff
+would be arbitrary. The criterion also fails to remove the manual step it was
+meant to avoid: `facebookresearch` (41) and `facebook` (11) are one company, as
+are `google` (40) and `google-deepmind` (9), and collapsing logins to companies
+is still a judgement call.
+
+**Decision.** Segmentation stays on `owner_type` (organisation vs individual),
+which comes free from the API and needs no external source or manual mapping.
+No finer split inside organisations is supportable from what is available.
+
+**Side observation.** The top of the organisation list is almost entirely AI:
+`openai`, `huggingface`, `deepseek-ai`, `anthropics`, `QwenLM`, `langchain-ai`,
+`google-deepmind`, `modelcontextprotocol`. These sit in recent cohorts and are
+classified `too_young`, so they carry no weight in the retention analysis — but
+they are context for the language and ecosystem trends.

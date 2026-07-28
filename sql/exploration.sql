@@ -73,3 +73,13 @@ GROUP BY team, activity;
 -- Repos with no code in the class: pushed_at there means list upkeep, not development.
 SELECT full_name FROM repositories
 WHERE retention_class = 'active_small_team' AND language IS NULL;
+
+
+-- Organisations by repo count: tested as a data-driven basis for is_top_corp.
+SELECT o.owner_login, COUNT(*) AS repos
+FROM repositories r
+JOIN owners o ON r.owner_login = o.owner_login
+WHERE o.owner_type = 'Organization'
+GROUP BY o.owner_login
+ORDER BY repos DESC
+LIMIT 30;

@@ -15,10 +15,7 @@ CREATE TABLE languages (
 
 CREATE TABLE owners (
     owner_login TEXT PRIMARY KEY,
-    owner_type  TEXT NOT NULL,
-    -- No BOOLEAN in SQLite. DEFAULT 0, not nullable: the top-corp list is frozen
-    -- and complete, so "not in the list" is a known false, not an unknown.
-    is_top_corp INTEGER NOT NULL DEFAULT 0 CHECK (is_top_corp IN (0, 1))
+    owner_type  TEXT NOT NULL
 );
 
 -- ---------- FACT ----------
@@ -44,7 +41,7 @@ CREATE TABLE repositories (
     created_at      TEXT,
     pushed_at       TEXT,
 
-    -- Derived at load time. Measured against a frozen snapshot_date, never now():
+    -- Filled by a separate pass. Measured against a frozen snapshot_date, never now():
     -- with now() the same repo shifts value on every rerun, and retention_class
     -- would drift with the run date instead of the data.
     created_year    INTEGER,

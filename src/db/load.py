@@ -63,7 +63,7 @@ conn.execute('DELETE FROM languages')
 conn.executemany('INSERT INTO languages (language) VALUES (?)',
                  [(language,) for language in languages])
 
-# is_top_corp left at DEFAULT 0 — labelling is a separate step.
+
 conn.executemany('INSERT INTO owners (owner_login, owner_type) VALUES (?, ?)',
                  owners.items())
 

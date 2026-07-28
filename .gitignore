@@ -13,3 +13,5 @@ wheels/
 data/raw/
 data/processed/
 data/*.db
+
+.ruff_cache/
