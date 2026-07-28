@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from collections import Counter
 
 YEARS = range(2016, 2026)
 
@@ -39,12 +40,31 @@ with open(CONTRIBUTORS, 'r', encoding='utf-8') as f:
             raise ValueError(f"Malformed line in {CONTRIBUTORS}: {line!r}")
         contributors[name] = value
 
+# GitHub renamed several languages in linguist ('Matlab' -> 'MATLAB'); a repo keeps
+# the spelling from when it was last analysed, so both live in the data. SQLite
+# compares text case-sensitively and accepted them as distinct keys — the engine
+# reading this database does not, and the duplicate blocks the language dimension
+# entirely. Nine repos out of 7500 are affected.
+spelling_counts = Counter(
+    repo['language'] for repo in repos if repo['language'] is not None
+)
+
+# Sorted by count desc, then name asc: frequency picks the winner, the name is a
+# tie-break so a rebuild cannot produce a different legend label from the same input.
+canonical = {}
+for spelling, _ in sorted(spelling_counts.items(), key=lambda kv: (-kv[1], kv[0])):
+    canonical.setdefault(spelling.lower(), spelling)
+
 languages = set()
 owners = {}
 
 for repo in repos:
     # A NULL FK is what excludes documentation repos from language cuts.
     if repo['language'] is not None:
+        # Rewritten on the fact, not only in the dimension: normalising the dimension
+        # alone would leave those repos pointing at a key that no longer exists,
+        # trading a loud failure for a silent (Blank) bucket.
+        repo['language'] = canonical[repo['language'].lower()]
         languages.add(repo['language'])
     owners[repo['owner']['login']] = repo['owner']['type']
 

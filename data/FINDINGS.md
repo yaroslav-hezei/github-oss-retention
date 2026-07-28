@@ -484,3 +484,34 @@ no share is silently recomputed on a smaller denominator.
 | Y | `days_since_push + 1`, log | calculated column in Power BI; label states the log scale |
 | colour | `language`, top 7 + other | NULL in grey, outside the legend |
 | annotation | x = 2, y = 400 | class boundaries as lines, not as colour |
+
+---
+
+## 10. Data quality — language spelling collision
+
+Found while building the Power BI model, not during analysis: the relationship
+`repositories → languages` could not be created because the dimension contained
+duplicate keys.
+
+**Cause.** GitHub renames languages in linguist over time (`Matlab` → `MATLAB`,
+`Vim script` → `Vim Script`). The `language` field is set when a repository is
+analysed and is not rewritten afterwards, so older repos carry the old spelling.
+SQLite compares text case-sensitively and accepted both as distinct primary keys;
+VertiPaq does not, and rejected the dimension.
+
+**Scale.** Two languages, 9 repos of 7500: MATLAB 3 / Matlab 1, Vim Script 4 /
+Vim script 1. Neither is in the top-7 palette, and the split is uneven rather
+than aligned with the rename date — so no year-over-year trend is distorted and
+no figure in sections 1–9 changes.
+
+**Fix.** Normalised in `load.py`, on both the fact and the dimension in one pass,
+so the two cannot diverge. The surviving spelling is the more frequent one within
+a case-insensitive group, with the name as tie-break: frequency alone is
+undefined at equal counts, and a rebuild must not be able to produce a different
+legend label from the same input. Lowercasing everything was rejected — `C#`,
+`C++` and `Objective-C` carry meaning in their case, and these strings end up as
+legend labels.
+
+No guard was added for future collisions: the frequency rule absorbs a new
+spelling on the next rebuild, so there is nothing to fail on. A hardcoded mapping
+would have needed one.
