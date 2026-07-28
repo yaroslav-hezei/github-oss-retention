@@ -14,4 +14,6 @@ data/raw/
 data/processed/
 data/*.db
 
+*.pbix
+
 .ruff_cache/
