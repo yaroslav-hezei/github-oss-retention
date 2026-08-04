@@ -1,36 +1,46 @@
-# Step 0 — Language Slice Coverage Conclusion
+# Step 0 — Language Slice Coverage Check
 
-## Context: Two-Stage Verification
+Run before a line of the collector was written. The question was not a detail of
+implementation but whether the intended analysis was viable at all: if a retention
+cut by language leaves half the languages with three or four repositories per cell,
+any share computed there is noise, and it is better to find that out on paper than
+after the pipeline is built.
 
-The verification was carried out in two stages:
+The check costs almost nothing. GitHub's search endpoint returns `total_count` for
+any query without downloading a single repository, so coverage can be measured with
+a few dozen calls and no collection.
+
+---
+
+## Two-stage verification
 
 **(a) Coarse grid at a fixed 500-star threshold**
 Output: `data/step0/result.csv`
 
 **(b) Finding the real top-750 entry threshold per year**
-Method: exponential + binary search.
+Method: exponential then binary search.
 Output: `data/step0/star_threshold.csv`
 
-Then: recount of `total_count` per language using the honest per-year threshold.
+Then: recount of `total_count` per language using the per-year threshold.
 Output: `data/step0/final_check.csv`
 
 ---
 
-## Why Stage (b) Was Necessary
+## Why stage (b) was necessary
 
-The 500-star threshold is independent per language. But the final sample is a shared
-**top-750 by stars per year across all languages combined**.
+A 500-star threshold applies independently to each language. But the final sample is
+a shared **top-750 by stars per year across all languages combined**.
 
-This means the stage (a) check produced misleadingly optimistic numbers: it ignored
-inter-language competition. The real top-750 entry bar in competitive years turns out
-to be several times higher than 500 — and that is what actually determines what makes
-it into the sample.
+Stage (a) therefore produced misleadingly optimistic numbers: it ignored competition
+between languages. In competitive years the real entry bar for the top 750 turns out
+to be several times higher than 500, and that bar — not a fixed number — determines
+what actually makes it into the sample.
 
 ---
 
-## Results for the 2016–2020 Cohort (after the honest threshold)
+## Results for the 2016–2020 cohort, at the real threshold
 
-Total `total_count` per language over 5 years:
+Total `total_count` per language over five years:
 
 | Language     | total_count |
 |--------------|-------------|
@@ -49,34 +59,35 @@ Total `total_count` per language over 5 years:
 
 ## Conclusion
 
-This is outcome **B** from the plan, but in a form the plan did not predict exactly.
+The concern that prompted the check was that **young languages** would be missing:
+Rust, TypeScript and Go might not have aged into the 2016–2020 cohort in any number,
+since a language needs years to accumulate top-starred repositories. That did not
+happen. All three clear a threshold of 30–50 repositories with a comfortable margin;
+Rust is the smallest of them at 171 and still an order of magnitude above the line.
 
-The plan expected a data shortage for **young languages** (Rust, TypeScript, Go) — the
-assumption being that they had not yet aged into the older cohort. In practice this
-hypothesis **was not confirmed**: Rust, TypeScript, and Go all cleared the 30–50 repo
-threshold with comfortable margin.
+The only language that fails is **Ruby**, with 9 repositories across the entire
+five-year cohort. The likely cause is the smaller size of Ruby's starred ecosystem
+on GitHub rather than the language's age, but this was not investigated and remains
+open.
 
-The real problem turned out to be only **Ruby** (total of 9 across the entire cohort).
-The likely cause is the smaller overall size of Ruby's starred ecosystem on GitHub,
-not the language's age. The exact cause was not investigated and remains an open question.
-
----
-
-## Practical Decision
-
-Ruby is excluded from the language slice of dashboard page 2 (`retention_class × language`).
-The remaining 9 languages stay in the slice as-is.
-
-This follows the plan (section 2.5, option B): change the problem statement, not the code —
-the slice is defined over languages with sufficient N.
+**Decision.** Ruby is dropped from the language cut. The remaining nine languages
+stay as they are. The fix is to the question, not to the code: the cut is defined
+over languages with enough repositories to support a share, and the one that is not
+is named rather than quietly averaged in.
 
 ---
 
-## 2023 Anomaly
+## 2023 anomaly
 
-In `star_threshold.csv` the 2023 threshold is **5158** — notably higher than neighboring
-values (3808 in 2022 and 3850 in 2024).
+In `star_threshold.csv` the 2023 threshold is **5158** — well above its neighbours,
+3808 in 2022 and 3850 in 2024.
 
-Likely cause: the surge of AI/LLM repositories following the ChatGPT release in late 2022
-pushed the star bar up specifically in that year. The cause was not verified in detail;
-recorded here as an observation.
+The likely cause is the surge of AI and LLM repositories after the release of ChatGPT
+in late 2022, which pushed the entry bar up in that year specifically. Not verified in
+detail; recorded as an observation.
+
+The same spike reappears independently in the collected data, where the 750th
+repository of 2023 has 5,163 stars (`FINDINGS.md`, section 2). The two figures are
+close but not identical, here and in every other year, because they were measured
+at different times: this file records the bar as the search API reported it before
+collection, and stars keep accruing between the two runs.

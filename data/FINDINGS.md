@@ -138,9 +138,11 @@ begins — the two weakest points of the methodology.
 **Statement.** *Among already-popular repositories in the old cohort, projects run
 by one or two contributors remain active roughly half as often as the rest.*
 
-This answers the project's central question with the opposite sign to the
-original hypothesis. Single-author long-timers are not absent — 62 of them are
-still active — but as a class they retain markedly worse.
+Single-author long-timers are not absent — 62 of them are still active — but as a
+class they retain markedly worse.
+
+> The `rest (3+)` denominators here include three repositories whose contributor
+> count could not be retrieved; see section 11.
 
 ---
 
@@ -162,9 +164,8 @@ From about 10% in recent years down to 1.7% in 2016.
    ten years a handful of drive-by contributors push the count from 1 to 8 while
    one person still does all the work.
 
-Both go in the README. This follows directly from what the contributor count
-actually measures: everyone who ever committed, not the size of the team working
-today.
+This follows directly from what the contributor count actually measures:
+everyone who ever committed, not the size of the team working today.
 
 ---
 
@@ -178,11 +179,10 @@ signal in its own right, and `age_days` only measures how long issues have had t
 accumulate. Repository size would work but was never collected. So the class
 rests on activity and team size.
 
-**Do two signals suffice?** The original concern was that `pushed_at` alone is
-fragile — a push can come from a dependency bot. Team size guards against this
-only if the two signals disagree often enough, and they do: 36% of small teams
-are active while 28% of larger ones are silent (section 4). Correlated, not
-redundant.
+**Do two signals suffice?** The concern is that `pushed_at` alone is fragile — a
+push can come from a dependency bot. Team size guards against this only if the
+two signals disagree often enough, and they do: 36% of small teams are active
+while 28% of larger ones are silent (section 4). Correlated, not redundant.
 
 **Thresholds are assumptions, and stated as such.** Activity is drawn at
 `days_since_push < 400` and the cohort at `created_year <= 2020`. Neither follows
@@ -215,10 +215,23 @@ class.
 | `active_small_team` | active, `contributors <= 2` | 62 |
 | `retained` | active, larger team | 2575 |
 
-**Why `too_young` is a label and not NULL.** The original reason given — that a
-named category stays visible in the dashboard legend — does not hold: page 2 is
-filtered to `created_year <= 2020`, so the label never appears in that legend at
-all. Two reasons that do hold:
+**Two numbers under similar names.** "Active" and `retained` are not the same
+count and must not be swapped. Active means `days_since_push < 400` and covers
+2,637 of 3,750 (70.3%) — `retained` plus `active_small_team`. The class
+`retained` is 2,575 (68.7%), the same set with small teams removed.
+
+Every share on the dashboard and every figure in section 9.3 uses the first
+definition. The reason is not convenience: `active_small_team` was split out
+because those repositories are the subject of the question, not because they
+retained less. Counting them as not-retained would let the classification
+contradict the finding it was built to describe. Removing the team split
+altogether puts all 2,637 back in one class, which is what shows that the split
+is a cut, not a level of retention.
+
+**Why `too_young` is a label and not NULL.** A named category staying visible in
+the dashboard legend would be an argument, but not on page 2: it is filtered to
+`created_year <= 2020`, so the label never appears in that legend at all. Two
+reasons that do hold:
 
 1. NULL arrives in Power BI as `(Blank)`, behaves differently inside measures,
    and reads as missing data in exactly the place where a deliberate
@@ -229,8 +242,8 @@ all. Two reasons that do hold:
    indistinguishable from "the script did not run".
 
 The legend argument becomes true only on page 1, where a visual showing what
-share of the sample enters the retention analysis is planned. That is a bonus,
-not the justification.
+share of the sample enters the retention analysis stands. That is a bonus, not
+the justification.
 
 **Caveats on `active_small_team`.** Reviewing all 62 by description showed the
 class mixes project types:
@@ -321,8 +334,7 @@ visual and confined to the upper third of the axis, where 1.9% of the points sit
 considered and rejected. In Power BI, points outside a manually set axis maximum
 are not clamped to the edge — they are not drawn at all, so 188 repos would
 disappear without leaving a trace. That is worse than the problem it solves: a
-visible cluster at the top edge at least prompts a question. *(To be confirmed
-against the actual rendering when the dashboard is built.)*
+visible cluster at the top edge at least prompts a question.
 
 **Decision — logarithmic Y axis.** Nothing is removed and no artificial cluster
 is created; the tail compresses and the mass between 0 and 400 days, which would
@@ -333,13 +345,24 @@ consequences to state on the visual itself:
   `days_since_push + 1`, a **calculated column in Power BI, not in SQLite**: the
   shift exists because of how the renderer behaves, not because of anything in
   the data, and the database should not carry a column that only makes sense
-  downstream. Half a line in the README covers it.
+  downstream.
 - A log axis is harder to read — the distance from 10 to 100 equals the distance
   from 100 to 1000. The axis label must say so outright rather than leave the
   reader to infer it from uneven gridlines.
 
 The alternative kept in reserve is a plain linear axis over the full 0–3024
 range: visually poor, analytically flawless, and requiring no caveat at all.
+
+**Sampling on the built chart.** The axis maximum was never set, but points are
+dropped anyway: with 3,747 plotted repos the visual reports "showing significant
+data points" and renders a subset, prioritising the outline and the outliers over
+points hidden by neighbours. Density inside the dense core is therefore not
+readable off the chart, though its shape and edges are.
+
+Turning the setting off replaces intelligent sampling with a hard point cap,
+which is worse — a loss without prioritisation, and of the same magnitude. It is
+left on and stated on the visual. No figure depends on it: every share on the
+page is computed by measure over the full cohort, not off the rendered points.
 
 ---
 
@@ -387,6 +410,10 @@ repos belong to organisations", not "organisations retain better".
 
 `owner_type` describes the **size** of a project, not its survival. As colour on
 an axis of team size it would restate X.
+
+This failure is not only a reason to reject the variable — it is page 3 of the
+dashboard, shown as the naive gap, the same gap inside bands, and the ownership
+skew that produces it.
 
 ### 9.2 `created_year` — rejected
 
@@ -457,6 +484,14 @@ cohort cutoff — not found in the data, and named rather than dressed up.
 Of the seven, only Rust, Go and JavaScript were put through the stratification
 test.
 
+**The same seven hold on the full sample.** The boundary above was derived on the
+cohort, but page 1 of the dashboard runs on all 7,500 repos, so a second palette
+was a real possibility. Recounted there, the top seven come out identical in
+membership — the order shifts inside the group (Rust from 8th to 6th, Java down)
+and Jupyter Notebook doubles to 266 without reaching the cut. One grouping column
+and one palette therefore serve both pages, and the legend means the same thing
+on each.
+
 ### 9.5 `language = NULL` — grey, outside the legend
 
 374 repos, 10% of the cohort, are documentation projects with no code. Three
@@ -480,7 +515,7 @@ no share is silently recomputed on a smaller denominator.
 
 | channel | variable | note |
 |---|---|---|
-| X | `contributors`, log | label: "contributors over the project's lifetime" |
+| X | `contributors`, log | label: "lifetime contributors" |
 | Y | `days_since_push + 1`, log | calculated column in Power BI; label states the log scale |
 | colour | `language`, top 7 + other | NULL in grey, outside the legend |
 | annotation | x = 2, y = 400 | class boundaries as lines, not as colour |
@@ -515,3 +550,24 @@ legend labels.
 No guard was added for future collisions: the frequency rule absorbs a new
 spelling on the next rebuild, so there is nothing to fail on. A hardcoded mapping
 would have needed one.
+
+---
+
+## 11. NULL contributors fall into the wrong branch in SQL
+
+Three repositories in the cohort — five in the full sample — have no contributor
+count. `NULL <= 2` evaluates to NULL rather than false, so the condition fails
+and the row falls through to the `ELSE` branch: section 4 counts them among
+`rest (3+)`, and `retention.sql` classifies the active ones as `retained`.
+
+Nobody decided that "could not be counted" means "large team"; it follows from
+SQL's three-valued logic, silently. At 3 of 3,579 the effect is in the fourth
+decimal — 0.7194 against 0.7190 with them removed — so no figure above changes.
+The defect is that the branch says nothing about them, not that they distort
+anything.
+
+The Power BI model handles them explicitly: the team grouping tests `ISBLANK`
+first and puts them in their own `Unknown` bucket, which is why the dashboard
+shows 3,576 against section 4's 3,579. All three are active, and they are also
+the reason the main scatter plots 3,747 of 3,750 points — a point with no X
+coordinate is not drawn.
